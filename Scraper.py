@@ -153,6 +153,142 @@ def daan_scraper():
         return gym_current, pool_current
     return 0, 0
 
+# 新莊
+def xinzhuang_scraper():
+    url = 'https://www.xzsports.com.tw/parser.php'
+    response = requests.get(url)
+    gym_current, pool_current = 0, 0
+    if response.status_code == 200:
+        data = response.text.split(',')
+        gym_current = data[0]
+        pool_current = data[1]
+    return gym_current, pool_current
+
+# 蘆洲
+def luzhou_scraper():
+    url = 'https://lzcsc.cyc.org.tw/'
+    gym_flow, pool_flow = type1_scraper(url)
+    return gym_flow, pool_flow
+
+# 土城
+def tucheng_scraper():
+    url = 'https://tccsc.cyc.org.tw/'
+    gym_flow, pool_flow = type1_scraper(url)
+    return gym_flow, pool_flow
+
+# 板橋
+def banqiao_scraper():
+    url = 'https://www.bqsports.com.tw/zh-TW/onsitenum'
+    response = requests.get(url)
+    gym_current, swimming_current = 0, 0
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        gym_flow = soup.find('h3', class_='gym_flow')
+        gym_current = gym_flow.find('span', class_='flow_number').text.strip()
+
+        pool_flow = soup.find('h3', class_='swimming_flow')
+        pool_current = pool_flow.find('span', class_='flow_number').text.strip()
+
+    return gym_current, pool_current
+
+# 永和
+def yonghe_scraper():
+    url = 'https://yhcsc.cyc.org.tw/'
+    gym_flow, pool_flow = type1_scraper(url)
+    return gym_flow, pool_flow
+
+# 汐止
+def xizhi_scraper():
+    url = 'https://xzcsc.cyc.org.tw/'
+    gym_flow, pool_flow = type1_scraper(url)
+    return gym_flow, pool_flow
+
+# 林口
+def linkou_scraper():
+    url = 'https://lkcsc.cyc.org.tw/'
+    gym_flow, pool_flow = type1_scraper(url)
+    return gym_flow, pool_flow
+
+# 新店
+def xindian_scraper():
+    url = 'https://www.xdsports.com.tw/zh_TW/onsitenum'
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        gym_flow = soup.find('li', id='flow_gym')
+        gym_current = gym_flow.find('span', class_='stadium-info_number').text.strip() or 0
+
+        pool_flow = soup.find('li', id='flow_swimming')
+        pool_current = pool_flow.find('span', class_='stadium-info_number').text.strip() or 0
+
+        return gym_current, pool_current
+    return 0, 0
+
+# 三重
+def sanchong_scraper():
+    url = 'http://www.scsports.com.tw/proxy1.php'
+    response = requests.get(url)
+    gym_current, pool_current = 0, 0
+    if response.status_code == 200:
+        data= response.json()
+        swim_data = data.get('swim', [])
+        if swim_data:
+            pool_current = swim_data[0]
+        gym_data = data.get('gym', [])
+        if gym_data:
+            gym_current = gym_data[0]
+    return gym_current, pool_current
+
+# 淡水
+def tamsui_scraper():
+    url = 'http://www.tssc.tw/'
+    response = requests.get(url)
+    gym_current, pool_current = 0, 0
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        gym_current = soup.find('li', class_='gym').find('span', class_='number-current').text or 0
+        pool_current = soup.find('li', class_='pool').find('span', class_='number-current').text or 0
+
+    return gym_current, pool_current
+
+# 三鶯
+def sanying_scraper():
+    url = 'https://scysports.com.tw/'
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        gym_current = soup.find('div', class_='pcount').find('div', class_='notice').text or 0
+        pool_current =  soup.find_all('div', class_='pcount')[1].find('div', class_='notice').text or 0
+
+        return gym_current, pool_current
+
+# 五股
+def wugu_scraper():
+    url = 'https://wgsc.chanchao.com.tw/'
+    response = requests.get(url)
+    gym_current, pool_current = 0, 0
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        gym_current = soup.find('div', class_='num_1').find('span', class_='num_1center').text.strip() or 0
+        pool_current =  soup.find_all('div', class_='num_1')[1].find('span', class_='num_1center').text.strip() or 0
+    return gym_current, pool_current
+
+# 樹林
+def shulin_scraper():
+    url = 'https://www.ntcslsports.com.tw/parser.php'
+    response = requests.get(url)
+    gym_current, pool_current = 0, 0
+    if response.status_code == 200:
+        data = response.text.split(',')
+        gym_current = data[0]
+        pool_current = data[1]
+    return gym_current, pool_current
+
 scarper_dict = {
     1: beitou_scraper,
     2: shihlin_scraper,
@@ -163,8 +299,20 @@ scarper_dict = {
     7: zhongshan_scraper,
     8: zhongzheng_scraper,
     9: daan_scraper,
-    10: wenshan_scraper
-
+    10: wenshan_scraper,
+    11: xinzhuang_scraper,
+    12: luzhou_scraper,
+    13: tamsui_scraper,
+    14: sanchong_scraper,
+    15: tucheng_scraper,
+    16: banqiao_scraper,
+    17: yonghe_scraper,
+    18: xizhi_scraper,
+    19: shulin_scraper,
+    20: sanying_scraper,
+    21: linkou_scraper,
+    22: wugu_scraper,
+    23: xindian_scraper
 }
 def fetch_data():
     for id, scraper in scarper_dict.items():
