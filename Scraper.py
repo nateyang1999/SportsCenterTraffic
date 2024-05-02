@@ -4,9 +4,35 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-import time
 import schedule
 import time
+import datetime
+import pymongo
+import re
+
+# 資料庫設定
+mc = pymongo.MongoClient('mongodb://localhost:27017/')
+db = mc['SportsCenterTraffic']
+historical_col = db['HistoricalTraffic']
+realtime_col = db['RealTimeTraffic']
+historical_col.create_index([("CenterId", 1), ("Facility", 1), ("Date", 1), ("Time", 1)], unique=True)
+realtime_col.create_index([("CenterId", 1), ("Facility", 1)], unique=True)
+
+# 將即時資料寫入 DB
+def write_realtime_data(center_id, facility, current_num):
+    qry = {"CenterId": center_id, "Facility": facility}
+    realtime_data = {
+        "CurrentNumber": current_num,
+        "Date": datetime.datetime.now().strftime("%Y-%m-%d"),
+        "Time": datetime.datetime.now().strftime("%H")
+    }
+    try:
+        result = realtime_col.find_one_and_update(qry, {"$set": realtime_data}, upsert=True, new=False)
+        if result:
+            historical_data = {"CenterId": center_id, "Facility": facility, "Date": result["Date"], "Time": result["Time"], "Number": result["CurrentNumber"]}
+            historical_col.insert_one(historical_data)
+    except Exception as e:
+        print(f"Database Error: {e}")
 
 # 通用格式的爬蟲
 def type1_scraper(url):
@@ -43,7 +69,7 @@ def beitou_scraper():
         pool_flow = soup.find('h3', class_='swimming_flow')
         pool_current = pool_flow.find('span', class_='flow_number').text.strip()
 
-        return gym_current, pool_current
+        return extract_number(gym_current), extract_number(pool_current)
     return 0, 0
 
 # 士林
@@ -134,7 +160,7 @@ def zhongzheng_scraper():
         pool_flow = soup.find('h3', class_='swimming_flow')
         pool_current = pool_flow.find('span', class_='flow_number').text.strip()
 
-        return gym_current, pool_current
+        return extract_number(gym_current), extract_number(pool_current)
     return 0, 0
 
 # 大安
@@ -180,7 +206,7 @@ def tucheng_scraper():
 def banqiao_scraper():
     url = 'https://www.bqsports.com.tw/zh-TW/onsitenum'
     response = requests.get(url)
-    gym_current, swimming_current = 0, 0
+    gym_current, pool_current = 0, 0
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -190,7 +216,7 @@ def banqiao_scraper():
         pool_flow = soup.find('h3', class_='swimming_flow')
         pool_current = pool_flow.find('span', class_='flow_number').text.strip()
 
-    return gym_current, pool_current
+    return extract_number(gym_current), extract_number(pool_current)
 
 # 永和
 def yonghe_scraper():
@@ -289,6 +315,15 @@ def shulin_scraper():
         pool_current = data[1]
     return gym_current, pool_current
 
+# 去掉字串中的非數字字元
+def extract_number(text):
+    # 使用正則表達式查找字串中的數字
+    numbers = re.findall(r'\d+', text)
+    if numbers:
+        # 將找到的第一組數字轉換成整數
+        return numbers[0]
+    return 0
+
 scarper_dict = {
     1: beitou_scraper,
     2: shihlin_scraper,
@@ -316,25 +351,27 @@ scarper_dict = {
 }
 def fetch_data():
     for id, scraper in scarper_dict.items():
-        gym_current, swimming_current = scraper()
-        print(f"場館：{id}")
-        print(f"健身房當前人數：{gym_current}")
-        print(f"游泳池當前人數：{swimming_current}")
-        print("=====================================")
+        gym_current, pool_current = scraper()
+        write_realtime_data(id, 'Gym', int(gym_current))
+        write_realtime_data(id, 'Pool', int(pool_current))
+        # print(f"場館：{id}")
+        # print(f"健身房當前人數：{gym_current}")
+        # print(f"游泳池當前人數：{pool_current}")
+        # print("=====================================")
 
 
-# def job():
-#     print("Fetching data...")
-#     fetch_data()
-#     print("Data fetched successfully!")
-#
-#
-# # 設定每小時整點執行 job 函數
-# schedule.every().hour.at(":22").do(job)
-#
-# # 讓程式一直運行
-# while True:
-#     schedule.run_pending()
-#     time.sleep(30)  # 每30秒檢查一次
+def job():
+    current_time = datetime.datetime.now()
+    # 只在 06:00~22:00 之間執行
+    if 6 <= current_time.hour < 22:
+        # print("Fetching data...")
+        fetch_data()
+        # print("Data fetched successfully!")
 
-fetch_data()
+# 設定每小時整點執行 job 函數
+schedule.every().hour.at(":00").do(job)
+
+# 讓程式一直運行
+while True:
+    schedule.run_pending()
+    time.sleep(30)  # 每30秒檢查一次
